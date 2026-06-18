@@ -1,0 +1,39 @@
+{
+  "name": "api-avaliacao",
+  "version": "0.1.0",
+  "description": "Prototipo de microservico para avaliacao escolar.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "docker:build": "docker build -f docker/Dockerfile -t api-avaliacao:latest .",
+    "docker:run": "docker run --rm -p 3000:3000 api-avaliacao:latest"
+  },
+  "keywords": [
+    "avaliacao",
+    "escolar",
+    "microservice",
+    "express",
+    "swagger"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "helmet": "^7.1.0",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.0",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "src/**/*.js"
+    ]
+  }
+}
