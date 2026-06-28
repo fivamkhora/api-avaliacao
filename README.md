@@ -37,6 +37,14 @@ Endpoints iniciais:
 npm test
 ```
 
+Para validar o frontend Next.js publicado na Vercel, informe a URL pelo ambiente:
+
+```bash
+FRONTEND_URL=https://seu-front.vercel.app npm test
+```
+
+No GitHub Actions, configure a variable `FRONTEND_URL` com a URL do frontend. Se a variavel nao existir, esse teste sera ignorado.
+
 ## Docker
 
 Build da imagem:

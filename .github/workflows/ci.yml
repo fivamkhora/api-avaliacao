@@ -38,10 +38,16 @@ jobs:
             npm install
           fi
 
+      - name: Validar script de teste
+        run: |
+          npm pkg get scripts
+          npm pkg get scripts.test | grep -v '^{}$'
+
       - name: Rodar Testes
-        run: npm test
+        run: npm run test
         env:
           SECRET: segredo_ci_test
+          FRONTEND_URL: ${{ vars.FRONTEND_URL }}
 
   trivy:
     name: Trivy FS Scan
