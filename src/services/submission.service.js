@@ -7,6 +7,26 @@ const SUBMISSION_STATUSES = [
   'CORRECTED',
 ];
 
+const ALLOWED_STATUS_TRANSITIONS = {
+  NOT_STARTED: [
+    'NOT_STARTED',
+    'IN_PROGRESS',
+    'SUBMITTED',
+  ],
+  IN_PROGRESS: [
+    'IN_PROGRESS',
+    'SUBMITTED',
+  ],
+  SUBMITTED: [
+    'SUBMITTED',
+    'IN_PROGRESS',
+    'CORRECTED',
+  ],
+  CORRECTED: [
+    'CORRECTED',
+  ],
+};
+
 const createServiceError = (message, statusCode = 400) => {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -18,6 +38,21 @@ const validateSubmissionStatus = (status) => {
   if (!SUBMISSION_STATUSES.includes(status)) {
     throw createServiceError(
       'O status deve ser NOT_STARTED, IN_PROGRESS, SUBMITTED ou CORRECTED.',
+    );
+  }
+};
+
+const validateStatusTransition = (
+  currentStatus,
+  newStatus,
+) => {
+  const allowedTransitions =
+    ALLOWED_STATUS_TRANSITIONS[currentStatus] || [];
+
+  if (!allowedTransitions.includes(newStatus)) {
+    throw createServiceError(
+      `Nao e permitido alterar o status de ${currentStatus} para ${newStatus}.`,
+      409,
     );
   }
 };
@@ -38,6 +73,32 @@ const validateScore = (score) => {
   return parsedScore;
 };
 
+const parseDate = (value, fieldName) => {
+  if (value === null) {
+    return null;
+  }
+
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    throw createServiceError(
+      `A data informada em ${fieldName} e invalida.`,
+    );
+  }
+
+  return parsedDate;
+};
+
+const calculateAnswersScore = (answers = []) => {
+  return answers.reduce((total, answer) => {
+    if (answer.score === null || answer.score === undefined) {
+      return total;
+    }
+
+    return total + Number(answer.score);
+  }, 0);
+};
+
 const findExamOrFail = async (examId) => {
   const exam = await prisma.exam.findUnique({
     where: {
@@ -46,25 +107,32 @@ const findExamOrFail = async (examId) => {
   });
 
   if (!exam) {
-    throw createServiceError('Avaliacao nao encontrada.', 404);
+    throw createServiceError(
+      'Avaliacao nao encontrada.',
+      404,
+    );
   }
 
   return exam;
 };
 
 const getSubmissionById = async (id) => {
-  const submission = await prisma.examSubmission.findUnique({
-    where: {
-      id,
-    },
-    include: {
-      exam: true,
-      answers: true,
-    },
-  });
+  const submission =
+    await prisma.examSubmission.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        exam: true,
+        answers: true,
+      },
+    });
 
   if (!submission) {
-    throw createServiceError('Submissao nao encontrada.', 404);
+    throw createServiceError(
+      'Submissao nao encontrada.',
+      404,
+    );
   }
 
   return submission;
@@ -75,17 +143,18 @@ const verifyExistingSubmission = async (
   studentId,
   ignoredSubmissionId = null,
 ) => {
-  const existingSubmission = await prisma.examSubmission.findFirst({
-    where: {
-      examId,
-      studentId,
-      ...(ignoredSubmissionId && {
-        NOT: {
-          id: ignoredSubmissionId,
-        },
-      }),
-    },
-  });
+  const existingSubmission =
+    await prisma.examSubmission.findFirst({
+      where: {
+        examId,
+        studentId,
+        ...(ignoredSubmissionId && {
+          NOT: {
+            id: ignoredSubmissionId,
+          },
+        }),
+      },
+    });
 
   if (existingSubmission) {
     throw createServiceError(
@@ -174,8 +243,12 @@ const listSubmissions = async ({
   });
 };
 
-const updateSubmission = async (id, submissionData) => {
-  const existingSubmission = await getSubmissionById(id);
+const updateSubmission = async (
+  id,
+  submissionData,
+) => {
+  const existingSubmission =
+    await getSubmissionById(id);
 
   const data = {};
 
@@ -208,7 +281,8 @@ const updateSubmission = async (id, submissionData) => {
   }
 
   const normalizedExamId = finalExamId.trim();
-  const normalizedStudentId = finalStudentId.trim();
+  const normalizedStudentId =
+    finalStudentId.trim();
 
   if (submissionData.examId !== undefined) {
     await findExamOrFail(normalizedExamId);
@@ -230,76 +304,101 @@ const updateSubmission = async (id, submissionData) => {
     );
   }
 
-  if (submissionData.status !== undefined) {
-    validateSubmissionStatus(submissionData.status);
-
-    data.status = submissionData.status;
-
-    if (
-      submissionData.status === 'IN_PROGRESS' &&
-      !existingSubmission.startedAt
-    ) {
-      data.startedAt = new Date();
-    }
-
-    if (
-      submissionData.status === 'SUBMITTED' &&
-      !existingSubmission.submittedAt
-    ) {
-      data.submittedAt = new Date();
-
-      if (!existingSubmission.startedAt) {
-        data.startedAt = new Date();
-      }
-    }
-
-    if (submissionData.status === 'CORRECTED') {
-      if (!existingSubmission.submittedAt) {
-        throw createServiceError(
-          'A submissao precisa ser enviada antes de ser corrigida.',
-        );
-      }
-    }
-  }
-
   if (submissionData.startedAt !== undefined) {
-    if (submissionData.startedAt === null) {
-      data.startedAt = null;
-    } else {
-      const parsedStartedAt = new Date(
-        submissionData.startedAt,
-      );
-
-      if (Number.isNaN(parsedStartedAt.getTime())) {
-        throw createServiceError(
-          'A data de inicio informada e invalida.',
-        );
-      }
-
-      data.startedAt = parsedStartedAt;
-    }
+    data.startedAt = parseDate(
+      submissionData.startedAt,
+      'startedAt',
+    );
   }
 
   if (submissionData.submittedAt !== undefined) {
-    if (submissionData.submittedAt === null) {
-      data.submittedAt = null;
-    } else {
-      const parsedSubmittedAt = new Date(
-        submissionData.submittedAt,
-      );
-
-      if (Number.isNaN(parsedSubmittedAt.getTime())) {
-        throw createServiceError(
-          'A data de envio informada e invalida.',
-        );
-      }
-
-      data.submittedAt = parsedSubmittedAt;
-    }
+    data.submittedAt = parseDate(
+      submissionData.submittedAt,
+      'submittedAt',
+    );
   }
 
   if (submissionData.score !== undefined) {
-    data.score = validateScore(submissionData.score);
+    data.score = validateScore(
+      submissionData.score,
+    );
+  }
+
+  const requestedStatus =
+    submissionData.status !== undefined
+      ? submissionData.status
+      : existingSubmission.status;
+
+  validateSubmissionStatus(requestedStatus);
+
+  if (submissionData.status !== undefined) {
+    validateStatusTransition(
+      existingSubmission.status,
+      requestedStatus,
+    );
+
+    data.status = requestedStatus;
+  }
+
+  if (requestedStatus === 'NOT_STARTED') {
+    data.startedAt = null;
+    data.submittedAt = null;
+    data.score = null;
+  }
+
+  if (requestedStatus === 'IN_PROGRESS') {
+    data.startedAt =
+      data.startedAt !== undefined
+        ? data.startedAt
+        : existingSubmission.startedAt || new Date();
+
+    data.submittedAt = null;
+
+    data.score = calculateAnswersScore(
+      existingSubmission.answers,
+    );
+  }
+
+  if (requestedStatus === 'SUBMITTED') {
+    data.startedAt =
+      data.startedAt !== undefined
+        ? data.startedAt
+        : existingSubmission.startedAt || new Date();
+
+    const isEnteringSubmittedStatus =
+      existingSubmission.status !== 'SUBMITTED';
+
+    data.submittedAt =
+      data.submittedAt !== undefined
+        ? data.submittedAt
+        : isEnteringSubmittedStatus
+          ? new Date()
+          : existingSubmission.submittedAt ||
+            new Date();
+
+    data.score = calculateAnswersScore(
+      existingSubmission.answers,
+    );
+  }
+
+  if (requestedStatus === 'CORRECTED') {
+    const effectiveSubmittedAt =
+      data.submittedAt !== undefined
+        ? data.submittedAt
+        : existingSubmission.submittedAt;
+
+    if (!effectiveSubmittedAt) {
+      throw createServiceError(
+        'A submissao precisa ser enviada antes de ser corrigida.',
+      );
+    }
+
+    data.startedAt =
+      data.startedAt !== undefined
+        ? data.startedAt
+        : existingSubmission.startedAt;
+
+    data.submittedAt = effectiveSubmittedAt;
   }
 
   const finalStartedAt =
