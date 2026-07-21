@@ -90,6 +90,64 @@ const listExams = async (req, res) => {
   }
 };
 
+const listUpcomingExams = async (req, res) => {
+  try {
+    const { classroomId } = req.query;
+
+    if (!classroomId) {
+      return res.status(400).json({
+        error: 'O classroomId deve ser informado.',
+      });
+    }
+
+    const currentDate = new Date();
+
+    const exams = await prisma.exam.findMany({
+      where: {
+        classroomId,
+        status: 'PUBLISHED',
+        availableAt: {
+          gte: currentDate,
+        },
+      },
+      orderBy: {
+        availableAt: 'asc',
+      },
+    });
+
+    const upcomingExams = exams.map((exam) => {
+      const formattedAvailableAt = exam.availableAt.toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
+      return {
+        ...exam,
+        message: `A avaliacao "${exam.title}" estara disponivel em ${formattedAvailableAt}.`,
+      };
+    });
+
+    return res.status(200).json({
+      message:
+        upcomingExams.length > 0
+          ? 'Proximas avaliacoes encontradas com sucesso.'
+          : 'Nenhuma avaliacao futura foi encontrada para esta turma.',
+      total: upcomingExams.length,
+      exams: upcomingExams,
+    });
+  } catch (error) {
+    console.error('Erro ao listar proximas avaliacoes:', error);
+
+    return res.status(500).json({
+      error: 'Erro interno do servidor.',
+    });
+  }
+};
+
 const getExamById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -235,6 +293,7 @@ const deleteExam = async (req, res) => {
 module.exports = {
   createExam,
   listExams,
+  listUpcomingExams,
   getExamById,
   updateExam,
   deleteExam,

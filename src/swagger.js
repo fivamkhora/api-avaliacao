@@ -149,6 +149,63 @@ module.exports = {
       },
     },
 
+   '/exams/upcoming': {
+      get: {
+        tags: ['Exams'],
+        summary: 'Lista as próximas avaliações',
+        description:
+          'Retorna as avaliações publicadas que ainda não iniciaram para uma turma específica.',
+
+        parameters: [
+          {
+            name: 'classroomId',
+            in: 'query',
+            required: true,
+            description: 'ID da turma.',
+            schema: {
+              type: 'string',
+            },
+          },
+        ],
+
+        responses: {
+          200: {
+            description: 'Próximas avaliações encontradas com sucesso.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    message: {
+                      type: 'string',
+                      example:
+                        'Proximas avaliacoes encontradas com sucesso.',
+                    },
+                    total: {
+                      type: 'integer',
+                      example: 2,
+                    },
+                    exams: {
+                      type: 'array',
+                      items: {
+                        $ref: '#/components/schemas/Exam',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            description: 'O classroomId deve ser informado.',
+          },
+          500: {
+            description: 'Erro interno do servidor.',
+          },
+        },
+      },
+    },
+
     '/exams/{id}': {
       get: {
         tags: ['Exams'],

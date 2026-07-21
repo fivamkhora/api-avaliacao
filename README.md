@@ -331,14 +331,26 @@ GET /healthcheck
 
 ## Exams
 
-| Método | Endpoint |
-|---------|----------|
-| GET | /exams |
-| POST | /exams |
-| GET | /exams/{id} |
-| PUT | /exams/{id} |
-| DELETE | /exams/{id} |
+| Método | Endpoint | Descrição |
+|---------|----------|-----------|
+| GET | /exams | Lista todas as avaliações |
+| POST | /exams | Cria uma nova avaliação |
+| GET | /exams/upcoming?classroomId={classroomId} | Lista as próximas avaliações publicadas de uma turma |
+| GET | /exams/{id} | Busca uma avaliação pelo ID |
+| PUT | /exams/{id} | Atualiza parcialmente uma avaliação |
+| DELETE | /exams/{id} | Remove uma avaliação |
 
+### Exemplo
+
+```http
+GET /exams/upcoming?classroomId=turma-01
+```
+
+Esse endpoint retorna apenas avaliações:
+
+- com status `PUBLISHED`;
+- pertencentes à turma informada;
+- cuja data `availableAt` ainda não foi alcançada.
 ---
 
 ## Questions
