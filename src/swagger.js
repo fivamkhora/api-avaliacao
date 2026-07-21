@@ -27,8 +27,16 @@ module.exports = {
       name: 'Questions',
       description: 'Gerenciamento de questões das avaliações',
     },
-  ],
+    {
+      name: 'Submissions',
+      description: 'Gerenciamento das submissões das avaliações',
+    },
+    {
+      name: 'Answers',
+      description: 'Gerenciamento das respostas dos alunos',
+    },
 
+  ],
   paths: {
     '/healthcheck': {
       get: {
@@ -454,6 +462,403 @@ module.exports = {
         },
       },
     },
+    '/submissions': {
+      get: {
+        tags: ['Submissions'],
+        summary: 'Lista todas as submissões',
+
+        parameters: [
+          {
+            name: 'examId',
+            in: 'query',
+            required: false,
+            description: 'Filtra as submissões pelo ID da avaliação.',
+            schema: {
+              type: 'string',
+              format: 'uuid',
+            },
+          },
+          {
+            name: 'studentId',
+            in: 'query',
+            required: false,
+            description: 'Filtra as submissões pelo ID do aluno.',
+            schema: {
+              type: 'string',
+            },
+          },
+          {
+            name: 'status',
+            in: 'query',
+            required: false,
+            description: 'Filtra as submissões pelo status.',
+            schema: {
+              $ref: '#/components/schemas/SubmissionStatus',
+            },
+          },
+        ],
+
+        responses: {
+          200: {
+            description: 'Lista de submissões.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: {
+                    $ref: '#/components/schemas/Submission',
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            description: 'Filtro inválido.',
+          },
+          500: {
+            description: 'Erro interno do servidor.',
+          },
+        },
+      },
+
+      post: {
+        tags: ['Submissions'],
+        summary: 'Cria uma nova submissão',
+
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/CreateSubmission',
+              },
+            },
+          },
+        },
+
+        responses: {
+          201: {
+            description: 'Submissão criada com sucesso.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/Submission',
+                },
+              },
+            },
+          },
+          400: {
+            description: 'Dados inválidos.',
+          },
+          404: {
+            description: 'Avaliação não encontrada.',
+          },
+          409: {
+            description:
+              'O aluno já possui uma submissão para esta avaliação.',
+          },
+          500: {
+            description: 'Erro interno do servidor.',
+          },
+        },
+      },
+    },
+
+    '/submissions/{id}': {
+      get: {
+        tags: ['Submissions'],
+        summary: 'Busca uma submissão pelo ID',
+
+        parameters: [
+          {
+            $ref: '#/components/parameters/IdPathParameter',
+          },
+        ],
+
+        responses: {
+          200: {
+            description: 'Submissão encontrada.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/Submission',
+                },
+              },
+            },
+          },
+          404: {
+            description: 'Submissão não encontrada.',
+          },
+          500: {
+            description: 'Erro interno do servidor.',
+          },
+        },
+      },
+
+      put: {
+        tags: ['Submissions'],
+        summary: 'Atualiza parcialmente uma submissão',
+
+        parameters: [
+          {
+            $ref: '#/components/parameters/IdPathParameter',
+          },
+        ],
+
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/UpdateSubmission',
+              },
+            },
+          },
+        },
+
+        responses: {
+          200: {
+            description: 'Submissão atualizada.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/Submission',
+                },
+              },
+            },
+          },
+          400: {
+            description: 'Dados inválidos.',
+          },
+          404: {
+            description: 'Submissão ou avaliação não encontrada.',
+          },
+          409: {
+            description:
+              'O aluno já possui uma submissão para esta avaliação.',
+          },
+          500: {
+            description: 'Erro interno do servidor.',
+          },
+        },
+      },
+
+      delete: {
+        tags: ['Submissions'],
+        summary: 'Remove uma submissão',
+
+        parameters: [
+          {
+            $ref: '#/components/parameters/IdPathParameter',
+          },
+        ],
+
+        responses: {
+          200: {
+            description: 'Submissão removida.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/SuccessMessage',
+                },
+              },
+            },
+          },
+          404: {
+            description: 'Submissão não encontrada.',
+          },
+          500: {
+            description: 'Erro interno do servidor.',
+          },
+        },
+      },
+    },
+    '/answers': {
+      get: {
+        tags: ['Answers'],
+        summary: 'Lista todas as respostas',
+
+        parameters: [
+          {
+            name: 'submissionId',
+            in: 'query',
+            required: false,
+            description: 'Filtra as respostas pela submissão.',
+            schema: {
+              type: 'string',
+              format: 'uuid',
+            },
+          },
+          {
+            name: 'questionId',
+            in: 'query',
+            required: false,
+            description: 'Filtra as respostas pela questão.',
+            schema: {
+              type: 'string',
+              format: 'uuid',
+            },
+          },
+        ],
+
+        responses: {
+          200: {
+            description: 'Lista de respostas.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: {
+                    $ref: '#/components/schemas/Answer',
+                  },
+                },
+              },
+            },
+          },
+          500: {
+            description: 'Erro interno do servidor.',
+          },
+        },
+      },
+
+      post: {
+        tags: ['Answers'],
+        summary: 'Cria uma nova resposta',
+
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/CreateAnswer',
+              },
+            },
+          },
+        },
+
+        responses: {
+          201: {
+            description: 'Resposta criada com sucesso.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/Answer',
+                },
+              },
+            },
+          },
+          400: {
+            description: 'Dados inválidos.',
+          },
+          404: {
+            description: 'Submissão ou questão não encontrada.',
+          },
+          409: {
+            description: 'Já existe uma resposta para esta questão.',
+          },
+          500: {
+            description: 'Erro interno do servidor.',
+          },
+        },
+      },
+    },
+
+    '/answers/{id}': {
+      get: {
+        tags: ['Answers'],
+        summary: 'Busca uma resposta pelo ID',
+
+        parameters: [
+          {
+            $ref: '#/components/parameters/IdPathParameter',
+          },
+        ],
+
+        responses: {
+          200: {
+            description: 'Resposta encontrada.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/Answer',
+                },
+              },
+            },
+          },
+          404: {
+            description: 'Resposta não encontrada.',
+          },
+        },
+      },
+
+      put: {
+        tags: ['Answers'],
+        summary: 'Atualiza uma resposta',
+
+        parameters: [
+          {
+            $ref: '#/components/parameters/IdPathParameter',
+          },
+        ],
+
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/UpdateAnswer',
+              },
+            },
+          },
+        },
+
+        responses: {
+          200: {
+            description: 'Resposta atualizada.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/Answer',
+                },
+              },
+            },
+          },
+          400: {
+            description: 'Dados inválidos.',
+          },
+          404: {
+            description: 'Resposta não encontrada.',
+          },
+        },
+      },
+
+      delete: {
+        tags: ['Answers'],
+        summary: 'Remove uma resposta',
+
+        parameters: [
+          {
+            $ref: '#/components/parameters/IdPathParameter',
+          },
+        ],
+
+        responses: {
+          200: {
+            description: 'Resposta removida.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/SuccessMessage',
+                },
+              },
+            },
+          },
+          404: {
+            description: 'Resposta não encontrada.',
+          },
+        },
+      },
+    },
   },
 
   components: {
@@ -790,6 +1195,195 @@ module.exports = {
           position: {
             type: 'integer',
             minimum: 1,
+          },
+        },
+      },
+
+      SubmissionStatus: {
+        type: 'string',
+        enum: [
+          'NOT_STARTED',
+          'IN_PROGRESS',
+          'SUBMITTED',
+          'GRADED',
+        ],
+      },
+
+      Submission: {
+        type: 'object',
+
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+          },
+          examId: {
+            type: 'string',
+            format: 'uuid',
+          },
+          studentId: {
+            type: 'string',
+          },
+          status: {
+            $ref: '#/components/schemas/SubmissionStatus',
+          },
+          score: {
+            type: 'number',
+            nullable: true,
+          },
+          startedAt: {
+            type: 'string',
+            format: 'date-time',
+            nullable: true,
+          },
+          submittedAt: {
+            type: 'string',
+            format: 'date-time',
+            nullable: true,
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+        },
+      },
+
+      CreateSubmission: {
+        type: 'object',
+
+        required: [
+          'examId',
+          'studentId',
+        ],
+
+        properties: {
+          examId: {
+            type: 'string',
+            format: 'uuid',
+            example: 'f83b696f-125d-421b-bc6f-3f9c553b3bcc',
+          },
+          studentId: {
+            type: 'string',
+            example: 'student-001',
+          },
+        },
+      },
+
+      UpdateSubmission: {
+        type: 'object',
+
+        properties: {
+          status: {
+            $ref: '#/components/schemas/SubmissionStatus',
+          },
+          score: {
+            type: 'number',
+            nullable: true,
+            example: 9.5,
+          },
+        },
+      },
+
+      Answer: {
+        type: 'object',
+
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+          },
+          submissionId: {
+            type: 'string',
+            format: 'uuid',
+          },
+          questionId: {
+            type: 'string',
+            format: 'uuid',
+          },
+          content: {
+            type: 'string',
+            nullable: true,
+            example: 'A Revolução Industrial teve início na Inglaterra.',
+          },
+          selectedOption: {
+            type: 'string',
+            nullable: true,
+            example: 'C',
+          },
+          isCorrect: {
+            type: 'boolean',
+            nullable: true,
+          },
+          score: {
+            type: 'number',
+            nullable: true,
+            example: 1,
+          },
+          feedback: {
+            type: 'string',
+            nullable: true,
+            example: 'Resposta correta.',
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+        },
+      },
+
+      CreateAnswer: {
+        type: 'object',
+
+        required: [
+          'submissionId',
+          'questionId',
+        ],
+
+        properties: {
+          submissionId: {
+            type: 'string',
+            format: 'uuid',
+            example: '27238202-edc5-4866-8970-a01997cf0364',
+          },
+          questionId: {
+            type: 'string',
+            format: 'uuid',
+            example: 'f83b696f-125d-421b-bc6f-3f9c553b3bcc',
+          },
+          content: {
+            type: 'string',
+            nullable: true,
+            example: 'Minha resposta dissertativa.',
+          },
+          selectedOption: {
+            type: 'string',
+            nullable: true,
+            example: 'A',
+          },
+        },
+      },
+
+      UpdateAnswer: {
+        type: 'object',
+
+        properties: {
+          content: {
+            type: 'string',
+            nullable: true,
+            example: 'Resposta atualizada.',
+          },
+          selectedOption: {
+            type: 'string',
+            nullable: true,
+            example: 'B',
           },
         },
       },
