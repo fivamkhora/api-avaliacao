@@ -447,6 +447,116 @@ Possíveis evoluções futuras:
 
 ---
 
+# Referencia da API
+
+Todas as rotas usam JSON. Criacoes retornam `201`; consultas e atualizacoes
+retornam `200`. Erros de validacao retornam `400`, registros inexistentes
+retornam `404` e conflitos de regra de negocio retornam `409`. Os erros usam o
+campo `error`, exceto as rotas de `/answers`, que usam `message`.
+
+| Metodo | Rota | Finalidade | Filtros de consulta |
+|--------|-------|---------|---------------|
+| GET | `/healthcheck` | Disponibilidade do servico | - |
+| GET | `/docs` | Interface Swagger | - |
+| POST | `/exams` | Cria uma avaliacao | - |
+| GET | `/exams` | Lista avaliacoes | `classroomId`, `teacherId`, `status` |
+| GET | `/exams/upcoming` | Avaliacoes publicadas futuras | `classroomId` obrigatorio |
+| GET, PUT, DELETE | `/exams/:id` | Consulta, atualiza ou remove uma avaliacao | - |
+| POST | `/questions` | Cria uma questao | - |
+| GET | `/questions` | Lista questoes | `examId`, `type` |
+| GET, PUT, DELETE | `/questions/:id` | Consulta, atualiza ou remove uma questao | - |
+| POST | `/submissions` | Cria uma submissao | - |
+| GET | `/submissions` | Lista submissoes | `examId`, `studentId`, `status` |
+| GET, PUT, DELETE | `/submissions/:id` | Consulta, atualiza ou remove uma submissao | - |
+| POST | `/answers` | Cria uma resposta | - |
+| GET | `/answers` | Lista respostas | `submissionId`, `questionId` |
+| GET, PUT, DELETE | `/answers/:id` | Consulta, atualiza ou remove uma resposta | - |
+
+## Avaliacoes
+
+`POST /exams` exige `title`, `description`, `classroomId`, `teacherId`,
+`availableAt` e `deadlineAt`. As datas devem ser validas e `deadlineAt` deve
+ser posterior a `availableAt`. `PUT /exams/:id` aceita atualizacao parcial,
+incluindo `status` (`DRAFT`, `PUBLISHED`, `CLOSED` ou `CORRECTED`) e `timeLimit`.
+
+```json
+{
+  "title": "Avaliacao de Matematica",
+  "description": "Conteudo do primeiro semestre",
+  "classroomId": "classroom-01",
+  "teacherId": "teacher-01",
+  "availableAt": "2026-08-01T13:00:00.000Z",
+  "deadlineAt": "2026-08-01T14:30:00.000Z",
+  "timeLimit": 90
+}
+```
+
+## Questoes
+
+`POST /questions` exige `examId`, `statement` e `position`. Os tipos validos
+sao `MULTIPLE_CHOICE`, `TRUE_FALSE` e `ESSAY`. Questoes objetivas exigem ao
+menos duas alternativas com `key` e `text`, e um `correctAnswer` correspondente
+a uma dessas chaves. A combinacao de `examId` e `position` e unica.
+
+```json
+{
+  "examId": "exam-uuid",
+  "statement": "Quanto e 2 + 2?",
+  "type": "MULTIPLE_CHOICE",
+  "options": [
+    { "key": "A", "text": "3" },
+    { "key": "B", "text": "4" }
+  ],
+  "correctAnswer": "B",
+  "points": 1,
+  "position": 1
+}
+```
+
+Para `ESSAY`, omita `options`; `correctAnswer` e opcional. `points` deve ser
+maior que zero.
+
+## Submissoes
+
+`POST /submissions` exige `examId` e `studentId` e cria o registro com status
+`NOT_STARTED`. Um aluno pode ter apenas uma submissao por avaliacao.
+`PUT /submissions/:id` aceita `examId`, `studentId`, `status`, `startedAt`,
+`submittedAt` e `score`.
+
+| Status atual | Proximos status permitidos |
+|----------------|-----------------------|
+| `NOT_STARTED` | `NOT_STARTED`, `IN_PROGRESS`, `SUBMITTED` |
+| `IN_PROGRESS` | `IN_PROGRESS`, `SUBMITTED` |
+| `SUBMITTED` | `SUBMITTED`, `IN_PROGRESS`, `CORRECTED` |
+| `CORRECTED` | `CORRECTED` |
+
+Ao entrar em `IN_PROGRESS` ou `SUBMITTED`, o servico preenche datas ausentes e
+recalcula a nota a partir das respostas existentes. Uma submissao so pode ser
+marcada como `CORRECTED` depois de enviada.
+
+## Respostas e correcao
+
+`POST /answers` exige `submissionId` e `questionId`. Questoes `ESSAY` exigem
+`content`; questoes objetivas exigem `selectedOption`. A avaliacao deve estar
+publicada, dentro da janela de disponibilidade, e a submissao nao pode estar
+finalizada.
+
+```json
+{
+  "submissionId": "submission-uuid",
+  "questionId": "question-uuid",
+  "selectedOption": "B"
+}
+```
+
+Respostas objetivas sao corrigidas automaticamente e recalculam a nota da
+submissao. Para `ESSAY`, `PUT /answers/:id` aceita `score`, `feedback` e
+`isCorrect` somente depois que a submissao estiver `SUBMITTED` ou `CORRECTED`.
+A nota manual deve estar entre zero e a pontuacao da questao. Nao e permitido
+editar `content` e corrigir manualmente na mesma requisicao.
+
+---
+
 # 👥 Projeto
 
 Este microserviço integra o projeto acadêmico **Khora**, desenvolvido na **FIAP**, sendo responsável pelo gerenciamento do processo de avaliações escolares.
