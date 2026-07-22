@@ -43,11 +43,15 @@ jobs:
           npm pkg get scripts
           npm pkg get scripts.test | grep -v '^{}$'
 
+      - name: Gerar Prisma Client
+        run: npm run prisma:generate
+
       - name: Rodar Testes
         run: npm run test
         env:
           SECRET: segredo_ci_test
           FRONTEND_URL: ${{ vars.FRONTEND_URL }}
+          DATABASE_URL: postgresql://test:test@localhost:5432/api_avaliacao_test
 
   trivy:
     name: Trivy FS Scan

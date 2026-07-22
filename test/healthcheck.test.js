@@ -1,4 +1,7 @@
 const request = require('supertest');
+
+jest.mock('../src/config/prisma', () => ({}));
+
 const app = require('../src/app');
 
 describe('GET /healthcheck', () => {

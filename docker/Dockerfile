@@ -5,7 +5,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package*.json ./
-RUN npm install --omit=dev
+COPY prisma ./prisma
+RUN npm ci && npm run prisma:generate && npm prune --omit=dev
 
 COPY src ./src
 
