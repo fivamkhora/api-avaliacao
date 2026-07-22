@@ -11,6 +11,9 @@ const answerRoutes = require('./routes/answer.routes');
 
 const app = express();
 
+// The TLS connection terminates at the reverse proxy in hosted environments.
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors());
 app.use(express.json());

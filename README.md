@@ -454,6 +454,11 @@ retornam `200`. Erros de validacao retornam `400`, registros inexistentes
 retornam `404` e conflitos de regra de negocio retornam `409`. Os erros usam o
 campo `error`, exceto as rotas de `/answers`, que usam `message`.
 
+Em ambientes com proxy reverso e SSL offloading, a API confia no primeiro
+proxy. A interface Swagger usa o mesmo host e protocolo da pagina aberta;
+assim, ao acessar `https://api.exemplo.com/docs`, os comandos gerados usam
+`https://api.exemplo.com` em vez de `http://localhost:3000`.
+
 | Metodo | Rota | Finalidade | Filtros de consulta |
 |--------|-------|---------|---------------|
 | GET | `/healthcheck` | Disponibilidade do servico | - |
