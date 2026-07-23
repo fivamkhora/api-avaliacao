@@ -172,6 +172,58 @@ const getExamById = async (req, res) => {
   }
 };
 
+const listExamSubmissions = async (req, res) => {
+  try {
+    const { examId } = req.params;
+
+    const exam = await prisma.exam.findUnique({
+      where: {
+        id: examId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!exam) {
+      return res.status(404).json({
+        error: 'Avaliacao nao encontrada.',
+      });
+    }
+
+    const submissions =
+      await prisma.examSubmission.findMany({
+        where: {
+          examId,
+        },
+        select: {
+          id: true,
+          studentId: true,
+          score: true,
+          status: true,
+          submittedAt: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+    return res.status(200).json({
+      total: submissions.length,
+      submissions,
+    });
+  } catch (error) {
+    console.error(
+      'Erro ao listar submissoes da avaliacao:',
+      error,
+    );
+
+    return res.status(500).json({
+      error: 'Erro interno do servidor.',
+    });
+  }
+};
+
 const updateExam = async (req, res) => {
   try {
     const { id } = req.params;
@@ -295,6 +347,7 @@ module.exports = {
   listExams,
   listUpcomingExams,
   getExamById,
+  listExamSubmissions,
   updateExam,
   deleteExam,
 };

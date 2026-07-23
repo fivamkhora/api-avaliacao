@@ -5,6 +5,7 @@ const {
   listExams,
   listUpcomingExams,
   getExamById,
+  listExamSubmissions,
   updateExam,
   deleteExam,
 } = require('../controllers/exam.controller');
@@ -17,6 +18,8 @@ router.get('/', listExams);
 
 // IMPORTANTE: deve vir antes de "/:id"
 router.get('/upcoming', listUpcomingExams);
+
+router.get('/:examId/submissions', listExamSubmissions);
 
 router.get('/:id', getExamById);
 

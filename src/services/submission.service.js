@@ -1,4 +1,9 @@
 const prisma = require('../config/prisma');
+const {
+  normalizeOption,
+  calculateAutomaticGrade,
+  summarizeAutomaticCorrection,
+} = require('./grading.service');
 
 const SUBMISSION_STATUSES = [
   'NOT_STARTED',
@@ -99,6 +104,68 @@ const calculateAnswersScore = (answers = []) => {
   }, 0);
 };
 
+const prepareSubmittedAnswer = (question, answer) => {
+  if (question.type === 'ESSAY') {
+    return {
+      content:
+        typeof answer === 'string'
+          ? answer.trim() || null
+          : null,
+      selectedOption: null,
+      isCorrect: null,
+      score: null,
+      feedback: null,
+      result: null,
+    };
+  }
+
+  const normalizedAnswer = normalizeOption(answer);
+
+  if (
+    normalizedAnswer &&
+    question.type === 'MULTIPLE_CHOICE'
+  ) {
+    const options = Array.isArray(question.options)
+      ? question.options
+      : [];
+
+    const optionExists = options.some((option) => {
+      return (
+        option &&
+        typeof option.key === 'string' &&
+        normalizeOption(option.key) === normalizedAnswer
+      );
+    });
+
+    if (!optionExists) {
+      throw createServiceError(
+        `A alternativa informada para a questao ${question.id} nao existe.`,
+      );
+    }
+  }
+
+  if (
+    normalizedAnswer &&
+    question.type === 'TRUE_FALSE' &&
+    !['TRUE', 'FALSE'].includes(normalizedAnswer)
+  ) {
+    throw createServiceError(
+      `A resposta da questao ${question.id} deve ser TRUE ou FALSE.`,
+    );
+  }
+
+  const automaticGrade = calculateAutomaticGrade(
+    question,
+    normalizedAnswer,
+  );
+
+  return {
+    content: null,
+    selectedOption: normalizedAnswer,
+    ...automaticGrade,
+  };
+};
+
 const findExamOrFail = async (examId) => {
   const exam = await prisma.exam.findUnique({
     where: {
@@ -114,6 +181,37 @@ const findExamOrFail = async (examId) => {
   }
 
   return exam;
+};
+
+const validateExamAvailability = (exam) => {
+  if (exam.status !== 'PUBLISHED') {
+    throw createServiceError(
+      'A avaliacao nao esta publicada.',
+      403,
+    );
+  }
+
+  const currentDate = new Date();
+
+  if (
+    exam.availableAt &&
+    currentDate < new Date(exam.availableAt)
+  ) {
+    throw createServiceError(
+      'A avaliacao ainda nao esta disponivel.',
+      403,
+    );
+  }
+
+  if (
+    exam.deadlineAt &&
+    currentDate > new Date(exam.deadlineAt)
+  ) {
+    throw createServiceError(
+      'O prazo para iniciar a avaliacao foi encerrado.',
+      403,
+    );
+  }
 };
 
 const getSubmissionById = async (id) => {
@@ -136,6 +234,102 @@ const getSubmissionById = async (id) => {
   }
 
   return submission;
+};
+
+const getSubmissionResult = async (submissionId) => {
+  if (
+    !submissionId ||
+    typeof submissionId !== 'string' ||
+    !submissionId.trim()
+  ) {
+    throw createServiceError(
+      'O submissionId deve ser informado corretamente.',
+    );
+  }
+
+  const submission =
+    await prisma.examSubmission.findUnique({
+      where: {
+        id: submissionId.trim(),
+      },
+      select: {
+        id: true,
+        examId: true,
+        studentId: true,
+        score: true,
+        status: true,
+        answers: {
+          select: {
+            content: true,
+            selectedOption: true,
+            isCorrect: true,
+          },
+        },
+      },
+    });
+
+  if (!submission) {
+    throw createServiceError(
+      'Submissao nao encontrada.',
+      404,
+    );
+  }
+
+  const totalQuestions = await prisma.question.count({
+    where: {
+      examId: submission.examId,
+    },
+  });
+
+  const answerIsFilled = (answer) => {
+    return (
+      (
+        typeof answer.content === 'string' &&
+        Boolean(answer.content.trim())
+      ) ||
+      (
+        typeof answer.selectedOption === 'string' &&
+        Boolean(answer.selectedOption.trim())
+      )
+    );
+  };
+
+  const answeredQuestions = submission.answers.filter(
+    answerIsFilled,
+  ).length;
+
+  const correctAnswers = submission.answers.filter(
+    (answer) => (
+      answerIsFilled(answer) &&
+      answer.isCorrect === true
+    ),
+  ).length;
+
+  const wrongAnswers = submission.answers.filter(
+    (answer) => (
+      answerIsFilled(answer) &&
+      answer.isCorrect === false
+    ),
+  ).length;
+
+  return {
+    submission: submission.id,
+    examId: submission.examId,
+    studentId: submission.studentId,
+    totalQuestions,
+    answeredQuestions,
+    correctAnswers,
+    wrongAnswers,
+    blankAnswers: Math.max(
+      totalQuestions - answeredQuestions,
+      0,
+    ),
+    finalGrade:
+      submission.score === null
+        ? null
+        : Number(submission.score),
+    status: submission.status,
+  };
 };
 
 const verifyExistingSubmission = async (
@@ -187,19 +381,58 @@ const createSubmission = async (submissionData) => {
   const normalizedExamId = examId.trim();
   const normalizedStudentId = studentId.trim();
 
-  await findExamOrFail(normalizedExamId);
+  const exam = await findExamOrFail(normalizedExamId);
 
-  await verifyExistingSubmission(
-    normalizedExamId,
-    normalizedStudentId,
-  );
+  validateExamAvailability(exam);
+
+  const existingSubmission =
+    await prisma.examSubmission.findUnique({
+      where: {
+        examId_studentId: {
+          examId: normalizedExamId,
+          studentId: normalizedStudentId,
+        },
+      },
+      include: {
+        exam: true,
+        answers: true,
+      },
+    });
+
+  if (existingSubmission) {
+    if (existingSubmission.status === 'IN_PROGRESS') {
+      return existingSubmission;
+    }
+
+    if (existingSubmission.status === 'NOT_STARTED') {
+      return prisma.examSubmission.update({
+        where: {
+          id: existingSubmission.id,
+        },
+        data: {
+          status: 'IN_PROGRESS',
+          startedAt: existingSubmission.startedAt || new Date(),
+        },
+        include: {
+          exam: true,
+          answers: true,
+        },
+      });
+    }
+
+    throw createServiceError(
+      'Este aluno ja finalizou uma submissao para esta avaliacao.',
+      409,
+    );
+  }
 
   try {
     return await prisma.examSubmission.create({
       data: {
         examId: normalizedExamId,
         studentId: normalizedStudentId,
-        status: 'NOT_STARTED',
+        status: 'IN_PROGRESS',
+        startedAt: new Date(),
       },
       include: {
         exam: true,
@@ -208,14 +441,259 @@ const createSubmission = async (submissionData) => {
     });
   } catch (error) {
     if (error.code === 'P2002') {
+      const concurrentSubmission =
+        await prisma.examSubmission.findUnique({
+          where: {
+            examId_studentId: {
+              examId: normalizedExamId,
+              studentId: normalizedStudentId,
+            },
+          },
+          include: {
+            exam: true,
+            answers: true,
+          },
+        });
+
+      if (
+        concurrentSubmission &&
+        concurrentSubmission.status === 'IN_PROGRESS'
+      ) {
+        return concurrentSubmission;
+      }
+
       throw createServiceError(
-        'Este aluno ja possui uma submissao para esta avaliacao.',
+        'Este aluno ja possui uma submissao finalizada para esta avaliacao.',
         409,
       );
     }
 
     throw error;
   }
+};
+
+const submitSubmission = async (
+  submissionId,
+  submissionData,
+) => {
+  if (
+    !submissionId ||
+    typeof submissionId !== 'string' ||
+    !submissionId.trim()
+  ) {
+    throw createServiceError(
+      'O submissionId deve ser informado corretamente.',
+    );
+  }
+
+  const { answers } = submissionData;
+
+  if (!Array.isArray(answers)) {
+    throw createServiceError(
+      'O campo answers deve ser uma lista.',
+    );
+  }
+
+  const questionIds = answers.map((submittedAnswer) => {
+    if (
+      !submittedAnswer ||
+      typeof submittedAnswer !== 'object' ||
+      typeof submittedAnswer.questionId !== 'string' ||
+      !submittedAnswer.questionId.trim()
+    ) {
+      throw createServiceError(
+        'Todas as respostas devem possuir um questionId valido.',
+      );
+    }
+
+    return submittedAnswer.questionId.trim();
+  });
+
+  if (new Set(questionIds).size !== questionIds.length) {
+    throw createServiceError(
+      'Nao e permitido enviar respostas duplicadas para a mesma questao.',
+    );
+  }
+
+  return prisma.$transaction(async (transaction) => {
+    const submission =
+      await transaction.examSubmission.findUnique({
+        where: {
+          id: submissionId.trim(),
+        },
+        include: {
+          exam: true,
+        },
+      });
+
+    if (!submission) {
+      throw createServiceError(
+        'Submissao nao encontrada.',
+        404,
+      );
+    }
+
+    if (submission.status !== 'IN_PROGRESS') {
+      if (
+        submission.status === 'SUBMITTED' ||
+        submission.status === 'CORRECTED'
+      ) {
+        throw createServiceError(
+          'Esta submissao ja foi enviada.',
+          409,
+        );
+      }
+
+      throw createServiceError(
+        'A submissao precisa estar em andamento para ser enviada.',
+        409,
+      );
+    }
+
+    const claimedSubmission =
+      await transaction.examSubmission.updateMany({
+        where: {
+          id: submission.id,
+          status: 'IN_PROGRESS',
+        },
+        data: {
+          status: 'IN_PROGRESS',
+        },
+      });
+
+    if (claimedSubmission.count !== 1) {
+      throw createServiceError(
+        'Esta submissao ja foi enviada.',
+        409,
+      );
+    }
+
+    validateExamAvailability(submission.exam);
+
+    const submittedQuestions =
+      await transaction.question.findMany({
+        where: {
+          id: {
+            in: questionIds,
+          },
+        },
+      });
+
+    if (submittedQuestions.length !== questionIds.length) {
+      throw createServiceError(
+        'Uma ou mais questoes nao foram encontradas.',
+        404,
+      );
+    }
+
+    const invalidQuestion = submittedQuestions.find(
+      (question) => question.examId !== submission.examId,
+    );
+
+    if (invalidQuestion) {
+      throw createServiceError(
+        `A questao ${invalidQuestion.id} nao pertence a avaliacao desta submissao.`,
+      );
+    }
+
+    const questions = await transaction.question.findMany({
+      where: {
+        examId: submission.examId,
+      },
+      orderBy: {
+        position: 'asc',
+      },
+    });
+
+    if (questions.length === 0) {
+      throw createServiceError(
+        'A avaliacao nao possui questoes para corrigir.',
+      );
+    }
+
+    const submittedAnswersByQuestionId = new Map(
+      answers.map((submittedAnswer) => [
+        submittedAnswer.questionId.trim(),
+        submittedAnswer.answer,
+      ]),
+    );
+
+    const preparedAnswers = questions.map(
+      (question) => {
+        const preparedData = prepareSubmittedAnswer(
+          question,
+          submittedAnswersByQuestionId.get(question.id),
+        );
+
+        const { result, ...answerData } = preparedData;
+
+        return {
+          question,
+          result,
+          data: answerData,
+        };
+      },
+    );
+
+    for (const preparedAnswer of preparedAnswers) {
+      await transaction.answer.upsert({
+        where: {
+          submissionId_questionId: {
+            submissionId: submission.id,
+            questionId: preparedAnswer.question.id,
+          },
+        },
+        create: {
+          submissionId: submission.id,
+          questionId: preparedAnswer.question.id,
+          ...preparedAnswer.data,
+        },
+        update: preparedAnswer.data,
+      });
+    }
+
+    const scoreResult = await transaction.answer.aggregate({
+      where: {
+        submissionId: submission.id,
+        score: {
+          not: null,
+        },
+      },
+      _sum: {
+        score: true,
+      },
+    });
+
+    const automaticCorrection =
+      summarizeAutomaticCorrection(preparedAnswers);
+
+    const hasEssayQuestions = questions.some(
+      (question) => question.type === 'ESSAY',
+    );
+
+    const updatedSubmission =
+      await transaction.examSubmission.update({
+      where: {
+        id: submission.id,
+      },
+      data: {
+        status: hasEssayQuestions
+          ? 'SUBMITTED'
+          : 'CORRECTED',
+        submittedAt: new Date(),
+        score: scoreResult._sum.score ?? 0,
+      },
+      include: {
+        exam: true,
+        answers: true,
+      },
+    });
+
+    return {
+      ...updatedSubmission,
+      automaticCorrection,
+    };
+  });
 };
 
 const listSubmissions = async ({
@@ -460,8 +938,10 @@ const deleteSubmission = async (id) => {
 
 module.exports = {
   createSubmission,
+  submitSubmission,
   listSubmissions,
   getSubmissionById,
+  getSubmissionResult,
   updateSubmission,
   deleteSubmission,
 };

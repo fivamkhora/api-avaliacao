@@ -14,6 +14,24 @@ const createSubmission = async (req, res) => {
   }
 };
 
+const submitSubmission = async (req, res) => {
+  try {
+    const submission =
+      await submissionService.submitSubmission(
+        req.params.submissionId,
+        req.body,
+      );
+
+    return res.status(200).json(submission);
+  } catch (error) {
+    console.error('Erro ao enviar submissao:', error);
+
+    return res.status(error.statusCode || 500).json({
+      error: error.message || 'Erro interno do servidor.',
+    });
+  }
+};
+
 const listSubmissions = async (req, res) => {
   try {
     const submissions = await submissionService.listSubmissions(req.query);
@@ -37,6 +55,26 @@ const getSubmissionById = async (req, res) => {
     return res.status(200).json(submission);
   } catch (error) {
     console.error('Erro ao buscar submissao:', error);
+
+    return res.status(error.statusCode || 500).json({
+      error: error.message || 'Erro interno do servidor.',
+    });
+  }
+};
+
+const getSubmissionResult = async (req, res) => {
+  try {
+    const result =
+      await submissionService.getSubmissionResult(
+        req.params.submissionId,
+      );
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error(
+      'Erro ao buscar resultado da submissao:',
+      error,
+    );
 
     return res.status(error.statusCode || 500).json({
       error: error.message || 'Erro interno do servidor.',
@@ -79,8 +117,10 @@ const deleteSubmission = async (req, res) => {
 
 module.exports = {
   createSubmission,
+  submitSubmission,
   listSubmissions,
   getSubmissionById,
+  getSubmissionResult,
   updateSubmission,
   deleteSubmission,
 };

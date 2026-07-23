@@ -1,4 +1,8 @@
 const prisma = require('../config/prisma');
+const {
+    normalizeOption,
+    calculateAutomaticGrade,
+} = require('./grading.service');
 
 const createError = (message, statusCode) => {
     const error = new Error(message);
@@ -13,14 +17,6 @@ const includeRelations = {
         },
     },
     question: true,
-};
-
-const normalizeOption = (value) => {
-    if (typeof value !== 'string') {
-        return null;
-    }
-
-    return value.trim().toUpperCase();
 };
 
 const validateRequiredFields = (submissionId, questionId) => {
@@ -136,47 +132,6 @@ const validateSubmissionCanBeAnswered = (submission) => {
             403,
         );
     }
-};
-
-const calculateAutomaticGrade = (question, selectedOption) => {
-    if (question.type === 'ESSAY') {
-        return {
-            isCorrect: null,
-            score: null,
-            feedback: null,
-        };
-    }
-
-    const normalizedCorrectAnswer = normalizeOption(
-        question.correctAnswer,
-    );
-
-    const normalizedSelectedOption = normalizeOption(
-        selectedOption,
-    );
-
-    /*
-     * Caso a questão objetiva não possua gabarito,
-     * ela permanece sem correção automática.
-     */
-    if (!normalizedCorrectAnswer) {
-        return {
-            isCorrect: null,
-            score: null,
-            feedback: null,
-        };
-    }
-
-    const isCorrect =
-        normalizedSelectedOption === normalizedCorrectAnswer;
-
-    return {
-        isCorrect,
-        score: isCorrect ? question.points : 0,
-        feedback: isCorrect
-            ? 'Resposta correta.'
-            : 'Resposta incorreta.',
-    };
 };
 
 const recalculateSubmissionScore = async (

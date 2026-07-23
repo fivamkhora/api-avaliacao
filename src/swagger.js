@@ -312,6 +312,67 @@ module.exports = {
       },
     },
 
+    '/exams/{id}/submissions': {
+      get: {
+        tags: ['Exams', 'Submissions'],
+        summary: 'Lista as submissoes de uma avaliacao',
+        description:
+          'Retorna somente as submissoes vinculadas a avaliacao, sem calcular media, ranking ou estatisticas.',
+        parameters: [
+          {
+            $ref: '#/components/parameters/IdPathParameter',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Submissoes encontradas com sucesso.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ExamSubmissionsResponse',
+                },
+                example: {
+                  total: 2,
+                  submissions: [
+                    {
+                      id: '27238202-edc5-4866-8970-a01997cf0364',
+                      studentId: 'student-001',
+                      score: 8.5,
+                      status: 'CORRECTED',
+                      submittedAt: '2026-07-23T14:30:00.000Z',
+                    },
+                    {
+                      id: '3da43d93-da82-4a3a-a9dd-188201d46e81',
+                      studentId: 'student-002',
+                      score: null,
+                      status: 'IN_PROGRESS',
+                      submittedAt: null,
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          404: {
+            description: 'Avaliacao nao encontrada.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ErrorResponse',
+                },
+                example: {
+                  error: 'Avaliacao nao encontrada.',
+                },
+              },
+            },
+          },
+          500: {
+            $ref: '#/components/responses/InternalServerError',
+          },
+        },
+      },
+    },
+
     '/questions': {
       get: {
         tags: ['Questions'],
@@ -589,6 +650,10 @@ module.exports = {
               schema: {
                 $ref: '#/components/schemas/CreateSubmission',
               },
+              example: {
+                examId: 'f83b696f-125d-421b-bc6f-3f9c553b3bcc',
+                studentId: 'student-001',
+              },
             },
           },
         },
@@ -601,21 +666,304 @@ module.exports = {
                 schema: {
                   $ref: '#/components/schemas/Submission',
                 },
+                example: {
+                  id: '27238202-edc5-4866-8970-a01997cf0364',
+                  examId: 'f83b696f-125d-421b-bc6f-3f9c553b3bcc',
+                  studentId: 'student-001',
+                  status: 'IN_PROGRESS',
+                  score: null,
+                  startedAt: '2026-07-23T14:00:00.000Z',
+                  submittedAt: null,
+                  createdAt: '2026-07-23T14:00:00.000Z',
+                  updatedAt: '2026-07-23T14:00:00.000Z',
+                },
               },
             },
           },
           400: {
             description: 'Dados inválidos.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ErrorResponse',
+                },
+                example: {
+                  error: 'examId e studentId sao obrigatorios.',
+                },
+              },
+            },
+          },
+          403: {
+            description:
+              'Avaliação não publicada, indisponível ou com prazo encerrado.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ErrorResponse',
+                },
+                example: {
+                  error: 'A avaliacao ainda nao esta disponivel.',
+                },
+              },
+            },
           },
           404: {
             description: 'Avaliação não encontrada.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ErrorResponse',
+                },
+                example: {
+                  error: 'Avaliacao nao encontrada.',
+                },
+              },
+            },
           },
           409: {
             description:
               'O aluno já possui uma submissão para esta avaliação.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ErrorResponse',
+                },
+                example: {
+                  error:
+                    'Este aluno ja finalizou uma submissao para esta avaliacao.',
+                },
+              },
+            },
           },
           500: {
-            description: 'Erro interno do servidor.',
+            $ref: '#/components/responses/InternalServerError',
+          },
+        },
+      },
+    },
+
+    '/submissions/{id}/submit': {
+      post: {
+        tags: ['Submissions'],
+        summary: 'Envia uma avaliacao para correcao',
+        description:
+          'Valida e salva todas as respostas em uma transacao, executa a correcao automatica e impede reenvios.',
+        parameters: [
+          {
+            $ref: '#/components/parameters/IdPathParameter',
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/SubmitSubmissionRequest',
+              },
+              examples: {
+                objectiveAnswers: {
+                  summary: 'Respostas objetivas',
+                  value: {
+                    answers: [
+                      {
+                        questionId:
+                          '94601518-e544-466e-a8a5-f3fc22412cb2',
+                        answer: 'A',
+                      },
+                      {
+                        questionId:
+                          '4727aaf5-dfc3-481f-a234-e344f9381108',
+                        answer: 'TRUE',
+                      },
+                    ],
+                  },
+                },
+                withBlankAnswer: {
+                  summary: 'Resposta em branco',
+                  value: {
+                    answers: [
+                      {
+                        questionId:
+                          '94601518-e544-466e-a8a5-f3fc22412cb2',
+                        answer: '',
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description:
+              'Submission enviada e correcao automatica executada.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/SubmitSubmissionResponse',
+                },
+                example: {
+                  id: '27238202-edc5-4866-8970-a01997cf0364',
+                  examId: 'f83b696f-125d-421b-bc6f-3f9c553b3bcc',
+                  studentId: 'student-001',
+                  status: 'CORRECTED',
+                  score: 8,
+                  startedAt: '2026-07-23T14:00:00.000Z',
+                  submittedAt: '2026-07-23T14:30:00.000Z',
+                  automaticCorrection: {
+                    correct: 8,
+                    incorrect: 1,
+                    blank: 1,
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            description:
+              'Payload invalido, questao duplicada ou questao de outra avaliacao.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ErrorResponse',
+                },
+                examples: {
+                  invalidPayload: {
+                    value: {
+                      error: 'O campo answers deve ser uma lista.',
+                    },
+                  },
+                  duplicatedQuestion: {
+                    value: {
+                      error:
+                        'Nao e permitido enviar respostas duplicadas para a mesma questao.',
+                    },
+                  },
+                  foreignQuestion: {
+                    value: {
+                      error:
+                        'A questao informada nao pertence a avaliacao desta submissao.',
+                    },
+                  },
+                },
+              },
+            },
+          },
+          403: {
+            description:
+              'Avaliacao indisponivel ou com prazo encerrado.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ErrorResponse',
+                },
+                example: {
+                  error:
+                    'O prazo para iniciar a avaliacao foi encerrado.',
+                },
+              },
+            },
+          },
+          404: {
+            description: 'Submission ou questao nao encontrada.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ErrorResponse',
+                },
+                example: {
+                  error: 'Submissao nao encontrada.',
+                },
+              },
+            },
+          },
+          409: {
+            description:
+              'Submission ja enviada ou fora do estado IN_PROGRESS.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ErrorResponse',
+                },
+                example: {
+                  error: 'Esta submissao ja foi enviada.',
+                },
+              },
+            },
+          },
+          500: {
+            $ref: '#/components/responses/InternalServerError',
+          },
+        },
+      },
+    },
+
+    '/submissions/{id}/result': {
+      get: {
+        tags: ['Submissions'],
+        summary: 'Consulta o resultado de uma Submission',
+        description:
+          'Retorna os totais e a nota final sem expor questoes, respostas ou gabaritos.',
+        parameters: [
+          {
+            $ref: '#/components/parameters/IdPathParameter',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Resultado encontrado com sucesso.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/SubmissionResult',
+                },
+                example: {
+                  submission:
+                    '27238202-edc5-4866-8970-a01997cf0364',
+                  examId:
+                    'f83b696f-125d-421b-bc6f-3f9c553b3bcc',
+                  studentId: 'student-001',
+                  totalQuestions: 10,
+                  answeredQuestions: 9,
+                  correctAnswers: 8,
+                  wrongAnswers: 1,
+                  blankAnswers: 1,
+                  finalGrade: 8,
+                  status: 'CORRECTED',
+                },
+              },
+            },
+          },
+          400: {
+            description: 'Identificador invalido.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ErrorResponse',
+                },
+                example: {
+                  error:
+                    'O submissionId deve ser informado corretamente.',
+                },
+              },
+            },
+          },
+          404: {
+            description: 'Submission nao encontrada.',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ErrorResponse',
+                },
+                example: {
+                  error: 'Submissao nao encontrada.',
+                },
+              },
+            },
+          },
+          500: {
+            $ref: '#/components/responses/InternalServerError',
           },
         },
       },
@@ -919,6 +1267,22 @@ module.exports = {
   },
 
   components: {
+    responses: {
+      InternalServerError: {
+        description: 'Erro interno do servidor.',
+        content: {
+          'application/json': {
+            schema: {
+              $ref: '#/components/schemas/ErrorResponse',
+            },
+            example: {
+              error: 'Erro interno do servidor.',
+            },
+          },
+        },
+      },
+    },
+
     parameters: {
       IdPathParameter: {
         name: 'id',
@@ -1262,7 +1626,7 @@ module.exports = {
           'NOT_STARTED',
           'IN_PROGRESS',
           'SUBMITTED',
-          'GRADED',
+          'CORRECTED',
         ],
       },
 
@@ -1441,6 +1805,213 @@ module.exports = {
             type: 'string',
             nullable: true,
             example: 'B',
+          },
+        },
+      },
+
+      SubmitSubmissionAnswer: {
+        type: 'object',
+        required: [
+          'questionId',
+          'answer',
+        ],
+        properties: {
+          questionId: {
+            type: 'string',
+            format: 'uuid',
+            example: '94601518-e544-466e-a8a5-f3fc22412cb2',
+          },
+          answer: {
+            type: 'string',
+            description:
+              'Alternativa da questao objetiva ou texto da questao dissertativa. Pode ser vazio.',
+            example: 'A',
+          },
+        },
+      },
+
+      SubmitSubmissionRequest: {
+        type: 'object',
+        required: [
+          'answers',
+        ],
+        properties: {
+          answers: {
+            type: 'array',
+            description:
+              'Respostas enviadas. Questoes omitidas sao registradas como respostas em branco.',
+            items: {
+              $ref: '#/components/schemas/SubmitSubmissionAnswer',
+            },
+          },
+        },
+      },
+
+      AutomaticCorrection: {
+        type: 'object',
+        required: [
+          'correct',
+          'incorrect',
+          'blank',
+        ],
+        properties: {
+          correct: {
+            type: 'integer',
+            minimum: 0,
+            example: 8,
+          },
+          incorrect: {
+            type: 'integer',
+            minimum: 0,
+            example: 1,
+          },
+          blank: {
+            type: 'integer',
+            minimum: 0,
+            example: 1,
+          },
+        },
+      },
+
+      SubmitSubmissionResponse: {
+        allOf: [
+          {
+            $ref: '#/components/schemas/Submission',
+          },
+          {
+            type: 'object',
+            properties: {
+              automaticCorrection: {
+                $ref: '#/components/schemas/AutomaticCorrection',
+              },
+              answers: {
+                type: 'array',
+                items: {
+                  $ref: '#/components/schemas/Answer',
+                },
+              },
+            },
+          },
+        ],
+      },
+
+      SubmissionResult: {
+        type: 'object',
+        required: [
+          'submission',
+          'examId',
+          'studentId',
+          'totalQuestions',
+          'answeredQuestions',
+          'correctAnswers',
+          'wrongAnswers',
+          'blankAnswers',
+          'finalGrade',
+          'status',
+        ],
+        properties: {
+          submission: {
+            type: 'string',
+            format: 'uuid',
+          },
+          examId: {
+            type: 'string',
+            format: 'uuid',
+          },
+          studentId: {
+            type: 'string',
+          },
+          totalQuestions: {
+            type: 'integer',
+            minimum: 0,
+          },
+          answeredQuestions: {
+            type: 'integer',
+            minimum: 0,
+          },
+          correctAnswers: {
+            type: 'integer',
+            minimum: 0,
+          },
+          wrongAnswers: {
+            type: 'integer',
+            minimum: 0,
+          },
+          blankAnswers: {
+            type: 'integer',
+            minimum: 0,
+          },
+          finalGrade: {
+            type: 'number',
+            nullable: true,
+          },
+          status: {
+            $ref: '#/components/schemas/SubmissionStatus',
+          },
+        },
+      },
+
+      ExamSubmissionListItem: {
+        type: 'object',
+        required: [
+          'id',
+          'studentId',
+          'score',
+          'status',
+          'submittedAt',
+        ],
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+          },
+          studentId: {
+            type: 'string',
+          },
+          score: {
+            type: 'number',
+            nullable: true,
+          },
+          status: {
+            $ref: '#/components/schemas/SubmissionStatus',
+          },
+          submittedAt: {
+            type: 'string',
+            format: 'date-time',
+            nullable: true,
+          },
+        },
+      },
+
+      ExamSubmissionsResponse: {
+        type: 'object',
+        required: [
+          'total',
+          'submissions',
+        ],
+        properties: {
+          total: {
+            type: 'integer',
+            minimum: 0,
+          },
+          submissions: {
+            type: 'array',
+            items: {
+              $ref: '#/components/schemas/ExamSubmissionListItem',
+            },
+          },
+        },
+      },
+
+      ErrorResponse: {
+        type: 'object',
+        required: [
+          'error',
+        ],
+        properties: {
+          error: {
+            type: 'string',
+            example: 'Dados invalidos.',
           },
         },
       },
