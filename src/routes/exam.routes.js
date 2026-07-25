@@ -2,6 +2,7 @@ const express = require('express');
 
 const {
   importExamFromApiIa,
+  listImportedExamsFromApiIa,
   createExam,
   listExams,
   listUpcomingExams,
@@ -13,6 +14,7 @@ const {
 const router = express.Router();
 
 router.post('/import/api-ia/:assessmentId', importExamFromApiIa);
+router.get('/import/api-ia', listImportedExamsFromApiIa);
 
 router.post('/', createExam);
 

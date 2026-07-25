@@ -113,6 +113,38 @@ module.exports = {
       },
     },
 
+    '/exams/import/api-ia': {
+      get: {
+        tags: ['Exams'],
+        summary: 'Lista avaliacoes importadas da API-IA',
+        parameters: [
+          {
+            name: 'classroomId',
+            in: 'query',
+            schema: { type: 'string' },
+          },
+          {
+            name: 'teacherId',
+            in: 'query',
+            schema: { type: 'string' },
+          },
+          {
+            name: 'status',
+            in: 'query',
+            schema: { $ref: '#/components/schemas/ExamStatus' },
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Lista de avaliacoes importadas.',
+          },
+          500: {
+            description: 'Erro interno do servidor.',
+          },
+        },
+      },
+    },
+
     '/exams': {
       get: {
         tags: ['Exams'],

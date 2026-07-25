@@ -465,6 +465,7 @@ assim, ao acessar `https://api.exemplo.com/docs`, os comandos gerados usam
 | GET | `/docs` | Interface Swagger | - |
 | POST | `/exams` | Cria uma avaliacao | - |
 | POST | `/exams/import/api-ia/:assessmentId` | Importa avaliacao e questoes da API-IA | - |
+| GET | `/exams/import/api-ia` | Lista avaliacoes importadas da API-IA | `classroomId`, `teacherId`, `status` |
 | GET | `/exams` | Lista avaliacoes | `classroomId`, `teacherId`, `status` |
 | GET | `/exams/upcoming` | Avaliacoes publicadas futuras | `classroomId` obrigatorio |
 | GET, PUT, DELETE | `/exams/:id` | Consulta, atualiza ou remove uma avaliacao | - |
@@ -508,6 +509,12 @@ importacao:
 
 ```bash
 npm run prisma:migrate:deploy
+```
+
+Para listar somente as avaliacoes que foram importadas:
+
+```http
+GET /exams/import/api-ia?classroomId=turma-01
 ```
 
 ```http

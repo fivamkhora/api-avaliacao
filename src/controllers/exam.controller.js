@@ -20,6 +20,41 @@ const importExamFromApiIa = async (req, res) => {
   }
 };
 
+const listImportedExamsFromApiIa = async (req, res) => {
+  try {
+    const { classroomId, teacherId, status } = req.query;
+
+    const exams = await prisma.exam.findMany({
+      where: {
+        externalAssessmentId: {
+          not: null,
+        },
+        ...(classroomId && { classroomId }),
+        ...(teacherId && { teacherId }),
+        ...(status && { status }),
+      },
+      include: {
+        _count: {
+          select: {
+            questions: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return res.status(200).json(exams);
+  } catch (error) {
+    console.error('Erro ao listar avaliacoes importadas da API-IA:', error);
+
+    return res.status(500).json({
+      error: 'Erro interno do servidor.',
+    });
+  }
+};
+
 const createExam = async (req, res) => {
   try {
     const {
@@ -312,6 +347,7 @@ const deleteExam = async (req, res) => {
 
 module.exports = {
   importExamFromApiIa,
+  listImportedExamsFromApiIa,
   createExam,
   listExams,
   listUpcomingExams,
