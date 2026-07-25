@@ -5,6 +5,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package*.json ./
+COPY prisma.config.ts ./
 COPY prisma ./prisma
 RUN npm ci --include=dev \
   && DATABASE_URL="postgresql://prisma:prisma@localhost:5432/prisma" npm run prisma:generate
