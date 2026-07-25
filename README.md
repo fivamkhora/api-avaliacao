@@ -511,7 +511,38 @@ importacao:
 npm run prisma:migrate:deploy
 ```
 
-A imagem Docker executa esse comando antes de iniciar a API.
+Para um banco existente que ja possui as tabelas iniciais, execute uma unica
+vez, em um ambiente com acesso ao banco:
+
+```bash
+npm run prisma:migrate:existing-db
+```
+
+O comando registra a migration inicial no historico do Prisma e aplica as
+migrations pendentes. Nao o execute em um banco sem as tabelas iniciais da API.
+
+Para executar a atualizacao diretamente no PostgreSQL, use o arquivo
+`prisma/manual-sql/20260725140000_add_api_ia_import_fields.sql`. Depois,
+configure temporariamente no container:
+
+```env
+PRISMA_BASELINE_EXISTING_SCHEMA=true
+PRISMA_MANUAL_API_IA_MIGRATION_APPLIED=true
+```
+
+No proximo startup, o Prisma registra o historico das duas migrations sem tentar
+aplicar novamente as alteracoes feitas pelo SQL. Remova as variaveis apos o
+deploy bem-sucedido.
+
+Para criar um banco PostgreSQL vazio com todo o schema, incluindo a importacao
+da API-IA, execute:
+
+```text
+prisma/manual-sql/000_create_api_avaliacao_schema.sql
+```
+
+A imagem Docker nao executa migrations ao iniciar. Execute as migrations ou o
+script SQL manual antes do deploy.
 
 Para listar somente as avaliacoes que foram importadas:
 

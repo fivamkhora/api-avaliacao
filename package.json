@@ -9,7 +9,10 @@
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "prisma:generate": "prisma generate",
-    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:deploy": "node scripts/prisma-migrate.js",
+    "prisma:migrate:deploy:raw": "prisma migrate deploy",
+    "prisma:migrate:baseline": "prisma migrate resolve --applied 20260719142320_init_evaluation_schema",
+    "prisma:migrate:existing-db": "node scripts/prisma-baseline-existing-db.js",
     "docker:build": "docker build -f docker/Dockerfile -t api-avaliacao:latest .",
     "docker:run": "docker run --rm -p 3000:3000 api-avaliacao:latest"
   },
