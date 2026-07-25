@@ -464,6 +464,7 @@ assim, ao acessar `https://api.exemplo.com/docs`, os comandos gerados usam
 | GET | `/healthcheck` | Disponibilidade do servico | - |
 | GET | `/docs` | Interface Swagger | - |
 | POST | `/exams` | Cria uma avaliacao | - |
+| POST | `/exams/import/api-ia/:assessmentId` | Importa avaliacao e questoes da API-IA | - |
 | GET | `/exams` | Lista avaliacoes | `classroomId`, `teacherId`, `status` |
 | GET | `/exams/upcoming` | Avaliacoes publicadas futuras | `classroomId` obrigatorio |
 | GET, PUT, DELETE | `/exams/:id` | Consulta, atualiza ou remove uma avaliacao | - |
@@ -493,6 +494,29 @@ incluindo `status` (`DRAFT`, `PUBLISHED`, `CLOSED` ou `CORRECTED`) e `timeLimit`
   "availableAt": "2026-08-01T13:00:00.000Z",
   "deadlineAt": "2026-08-01T14:30:00.000Z",
   "timeLimit": 90
+}
+```
+
+Para importar uma avaliacao gerada pela API-IA, envie `classroomId` e
+`teacherId`. A URL da API-IA pode ser configurada com
+`API_IA_ASSESSMENTS_URL`; sem essa variavel, a API usa o endpoint publico da
+API-IA. A importacao cria ou atualiza o exame e suas questoes pelo
+`assessmentId`, incluindo alternativas, gabarito e rubrica.
+
+Antes de publicar esta versao, aplique a migration que adiciona os campos de
+importacao:
+
+```bash
+npm run prisma:migrate:deploy
+```
+
+```http
+POST /exams/import/api-ia/767a2807-f5d8-4e97-aca3-273920ac3d75
+Content-Type: application/json
+
+{
+  "classroomId": "turma-01",
+  "teacherId": "professor-01"
 }
 ```
 

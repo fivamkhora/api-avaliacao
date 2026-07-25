@@ -9,6 +9,7 @@
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "prisma:generate": "prisma generate",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "docker:build": "docker build -f docker/Dockerfile -t api-avaliacao:latest .",
     "docker:run": "docker run --rm -p 3000:3000 api-avaliacao:latest"
   },

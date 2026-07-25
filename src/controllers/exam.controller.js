@@ -1,4 +1,24 @@
 const prisma = require('../config/prisma');
+const {
+  importApiIaAssessment,
+} = require('../services/api-ia-assessment-import.service');
+
+const importExamFromApiIa = async (req, res) => {
+  try {
+    const result = await importApiIaAssessment(
+      req.params.assessmentId,
+      req.body,
+    );
+
+    return res.status(result.created ? 201 : 200).json(result.exam);
+  } catch (error) {
+    console.error('Erro ao importar avaliacao da API-IA:', error);
+
+    return res.status(error.statusCode || 500).json({
+      error: error.message || 'Erro interno do servidor.',
+    });
+  }
+};
 
 const createExam = async (req, res) => {
   try {
@@ -291,6 +311,7 @@ const deleteExam = async (req, res) => {
 };
 
 module.exports = {
+  importExamFromApiIa,
   createExam,
   listExams,
   listUpcomingExams,

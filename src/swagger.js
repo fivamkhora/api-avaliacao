@@ -52,6 +52,67 @@ module.exports = {
       },
     },
 
+    '/exams/import/api-ia/{assessmentId}': {
+      post: {
+        tags: ['Exams'],
+        summary: 'Importa uma avaliacao e suas questoes da API-IA',
+        parameters: [
+          {
+            name: 'assessmentId',
+            in: 'path',
+            required: true,
+            description: 'Identificador da avaliacao na API-IA.',
+            schema: {
+              type: 'string',
+              format: 'uuid',
+            },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['classroomId', 'teacherId'],
+                properties: {
+                  classroomId: {
+                    type: 'string',
+                  },
+                  teacherId: {
+                    type: 'string',
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Avaliacao importada com sucesso.',
+          },
+          200: {
+            description: 'Avaliacao importada novamente e atualizada.',
+          },
+          400: {
+            description: 'Dados de vinculacao invalidos.',
+          },
+          404: {
+            description: 'Avaliacao nao encontrada na API-IA.',
+          },
+          409: {
+            description: 'Avaliacao com submissoes nao pode ser sobrescrita.',
+          },
+          422: {
+            description: 'Payload retornado pela API-IA invalido.',
+          },
+          502: {
+            description: 'Falha ao consultar a API-IA.',
+          },
+        },
+      },
+    },
+
     '/exams': {
       get: {
         tags: ['Exams'],

@@ -27,17 +27,19 @@ enum SubmissionStatus {
 }
 
 model Exam {
-  id          String     @id @default(uuid())
-  title       String
-  description String?
-  classroomId String
-  teacherId   String
-  status      ExamStatus @default(DRAFT)
-  availableAt DateTime?
-  deadlineAt  DateTime?
-  timeLimit   Int?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id                   String     @id @default(uuid())
+  title                String
+  description          String?
+  classroomId          String
+  teacherId            String
+  externalAssessmentId String?    @unique
+  aiVersion            Int?
+  status               ExamStatus @default(DRAFT)
+  availableAt          DateTime?
+  deadlineAt           DateTime?
+  timeLimit            Int?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 
   questions   Question[]
   submissions ExamSubmission[]
@@ -56,6 +58,7 @@ model Question {
   type          QuestionType @default(MULTIPLE_CHOICE)
   options       Json?
   correctAnswer String?
+  rubric        String?
   points        Decimal      @default(1.0) @db.Decimal(10, 2)
   position      Int
   createdAt     DateTime     @default(now())
