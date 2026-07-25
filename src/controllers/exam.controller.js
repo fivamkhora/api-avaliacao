@@ -49,6 +49,12 @@ const listImportedExamsFromApiIa = async (req, res) => {
   } catch (error) {
     console.error('Erro ao listar avaliacoes importadas da API-IA:', error);
 
+    if (error.code === 'P2021' || error.code === 'P2022') {
+      return res.status(503).json({
+        error: 'Banco de dados desatualizado. Execute as migrations do Prisma.',
+      });
+    }
+
     return res.status(500).json({
       error: 'Erro interno do servidor.',
     });

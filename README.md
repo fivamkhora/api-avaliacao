@@ -511,6 +511,8 @@ importacao:
 npm run prisma:migrate:deploy
 ```
 
+A imagem Docker executa esse comando antes de iniciar a API.
+
 Para listar somente as avaliacoes que foram importadas:
 
 ```http
